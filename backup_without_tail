@@ -1,0 +1,110 @@
+import * as readline from "node:readline";
+
+export enum SNAKE_OBJECTS {
+    AIR = "🟩",
+    SNAKE_HEAD = "🐍",
+    APPLE = "🍎",
+}
+
+export class Snake {
+    tableLength: number;
+    middle: number;
+    table: Array<Array<SNAKE_OBJECTS>>;
+    snake: {
+        direction: "UP" | "DOWN" | "LEFT" | "RIGHT" | "NONE";
+        headPosition: { x: number; y: number };
+        frameSpeed: number;
+    }
+    score: number;
+    constructor(tableLength = 5) {
+        this.tableLength = tableLength;
+        this.middle = Math.ceil(this.tableLength / 2) - 1;
+        this.table = Array.from({ length: this.tableLength }, () => Array(this.tableLength).fill(SNAKE_OBJECTS.AIR));
+        this.table[this.middle][this.middle] = SNAKE_OBJECTS.SNAKE_HEAD;
+        this.snake = {
+            direction: "RIGHT",
+            headPosition: { x: this.middle, y: this.middle },
+            frameSpeed: 500
+        };
+        this.score = 0;
+
+        this.listenInput();
+        this.update();
+        this.spawnObject(SNAKE_OBJECTS.APPLE);
+    }
+
+    spawnObject(item: SNAKE_OBJECTS, override = false): void {
+        const randomY = Math.floor(Math.random() * this.tableLength);
+        const randomX = Math.floor(Math.random() * this.tableLength);
+        if (
+            this.table[randomY][randomX] !== SNAKE_OBJECTS.AIR
+            && !override
+        ) return this.spawnObject(item); // bad luck! retry
+        this.table[randomY][randomX] = item;
+    }
+
+    displayTable(): void {
+        console.clear();
+        for (const row of this.table) {
+            for (const element of row) {
+                process.stdout.write(" " + element + " ");
+            }
+            process.stdout.write("\n");
+        }
+        console.log("SCORE:", this.score);
+    }
+
+    updateSnakePosition(x: number, y: number): void {
+        if (
+            x > this.tableLength - 1
+            || y > this.tableLength - 1
+            || x < 0
+            || y < 0
+
+        ) this.gameOverScreen();
+        this.table[this.snake.headPosition.y][this.snake.headPosition.x] = SNAKE_OBJECTS.AIR;
+
+        if (this.table[y][x] === SNAKE_OBJECTS.APPLE) {
+            this.score++;
+            this.spawnObject(SNAKE_OBJECTS.APPLE);
+        }
+
+        this.table[y][x] = SNAKE_OBJECTS.SNAKE_HEAD;
+        this.snake.headPosition = { x,y };
+    }
+
+    gameOverScreen(): void {
+        console.clear();
+        console.log("GAME OVER");
+        console.log("SCORE:", this.score);
+        process.exit();
+    }
+
+    update(): void {
+        setInterval(() => {
+            if (this.snake.direction === "UP") {
+                this.updateSnakePosition(this.snake.headPosition.x, this.snake.headPosition.y - 1);
+            } else if (this.snake.direction === "DOWN") {
+                this.updateSnakePosition(this.snake.headPosition.x, this.snake.headPosition.y + 1);
+            } else if (this.snake.direction === "LEFT") {
+                this.updateSnakePosition(this.snake.headPosition.x - 1, this.snake.headPosition.y);
+            } else if (this.snake.direction === "RIGHT") {
+                this.updateSnakePosition(this.snake.headPosition.x + 1, this.snake.headPosition.y);
+            }
+
+            this.displayTable()
+        }, this.snake.frameSpeed);
+    }
+
+    listenInput(): void {
+        readline.emitKeypressEvents(process.stdin);
+        process.stdin.setRawMode(true);
+
+        process.stdin.on("keypress", (_, key) => {
+            const allowedInputs = ["UP", "DOWN", "LEFT", "RIGHT"];
+            const direction = key.name.toUpperCase();
+            if (allowedInputs.includes(direction))
+                this.snake.direction = direction;
+        });
+    }
+}
